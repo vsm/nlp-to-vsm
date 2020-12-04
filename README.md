@@ -13,7 +13,7 @@ VSM is an elegant method that for example biologists can use to represent _any_ 
 
 VSM combines semantic **computability**, extreme **flexibility** (manageable via templates also), and unprecedented **intuitiveness** for use by domain experts such as biologists.  
 
-See [vsm.github.io](https://vsm.github.io) for all info on VSM. &nbsp; (Esp. the [vsm-box demo](https://vsm.github.io/demo), and the [causalBuilder](https://mi2cast.github.io/causalBuilder) interface that reflects the MI2CAST standard).
+See [vsm.github.io](https://vsm.github.io) for all info on VSM, &nbsp;(esp. the [vsm-box demo](https://vsm.github.io/demo), and the [causalBuilder](https://mi2cast.github.io/causalBuilder) interface as a use-case).
 
 <br>
 
