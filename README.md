@@ -12,7 +12,7 @@ The extracted knowledge can be placed in a [vsm-box](https://github.com/vsm/vsm-
 ## What is VSM?
 VSM is an elegant method that biologists (or any other non-IT specialists) can use to represent _any_ type of knowledge, with _any_ amount of context details (even context on context recursively), in a computable form.
 
-VSM creates a unique combination of semantic **computability**, extreme **flexibility** (manageable via templates also), and human-oriented **intuitiveness**. This makes this technology both practical and comfortable to use by domain experts like biologists, chemists, etc.  
+VSM creates a unique combination of semantic **computability**, extreme **flexibility** (manageable via templates also), and human-oriented **intuitiveness**. This makes this technology both practical and comfortable for use by domain experts like biologists, chemists, etc.  
 
 See [vsm.github.io](https://vsm.github.io) for all info on VSM, &nbsp;(esp. the [vsm-box demo](https://vsm.github.io/demo), and the [causalBuilder](https://mi2cast.github.io/causalBuilder) interface as a use-case).
 
@@ -25,7 +25,7 @@ See [vsm.github.io](https://vsm.github.io) for all info on VSM, &nbsp;(esp. the 
 We could use the output of the [Enju](https://mynlp.is.s.u-tokyo.ac.jp/enju) deep parser, and design rules to convert this to VSM-structures.  
 This means that:
 - all relevant entities should (ideally) be mapped onto a readable string + an identifier (e.g. URIs via [vsm-PubDictionaries](https://github.com/UniBioDicts/vsm-pubdictionaries)), and
-- these should be meaningfully connected with ‘VSM-connectors’, which express elementary semantics of: triples (=`relation-entity has-subject subject-entity; has-object object-entity`), duples, lists, and coreferences, as described in the [VSM-paper](https://www.preprints.org/manuscript/202007.0486).
+- these should be meaningfully connected with ‘VSM-connectors’, which express the elementary semantics of: triples (=`relation-entity has-subject subject-entity; has-object object-entity`), couples, lists, and coreferences, as described in the [VSM paper](https://www.preprints.org/manuscript/202007.0486).
 
 For example, the Enju output shown at [PubAnnotation.org](http://www.pubannotation.org), bottom image, could be transformed into something like the JS code below
 (paste this in the larger textfield at [vsm demo](https://vsm.github.io/demo) to see the corresponding VSM-sentence, where it is also user-editable) :
