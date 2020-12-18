@@ -1,0 +1,11 @@
+dist/
+node_modules/
+x-*/
+y-*/
+z-*/
+.idea/
+2Do*
+secret*
+*.bat
+*.lnk
+*.sublime*
