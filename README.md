@@ -72,8 +72,12 @@ We could also start from dependency structures in the [UD form](https://universa
 
 For example the [Stanza](https://stanfordnlp.github.io/stanza) parser can produce UD [output](https://stanfordnlp.github.io/stanza/depparse.html#accessing-syntactic-dependency-information), also for biomedical and clinical text.  
 This can be tested live on [stanza.run/bio](http://stanza.run/bio) : press Submit, and see the UD output and other useful information visualized at the bottom of the page.
+The Stanza UD output for the earlier example is:
+
+<img src="img/ud.svg">
 
 
+<br>
 <br>
 
 ## This project is particularly looking for:
