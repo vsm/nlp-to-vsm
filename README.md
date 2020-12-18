@@ -76,6 +76,18 @@ This can be tested live on [stanza.run/bio](http://stanza.run/bio) : press Submi
 
 <br>
 
+## This project is particularly looking for:
+
+- People who know more about NLP.
+- It would be great to **discuss** the ins and outs of dependency types,
+- and to come up with clever **ideas for mapping dependency relations onto VSM semantics**, structurally (i.e. VSM-connectors),
+- and for **mapping certain terms onto IDs**, where possible (e.g. relation IDs, and prepositions as relations),
+- and for **what parts of a sentence to convert** (e.g. discard filler text),
+- and perhaps **to simplify some parts** (e.g. "production-of --> ROI" could become one GO-term like "ROS biosynthesis").
+
+
+<br>
+
 ## Further ideas
 
 ### Literature topic
