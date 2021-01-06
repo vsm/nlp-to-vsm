@@ -6,10 +6,10 @@ This is a project for the 7th Biomedical Linked Annotation Hackathon ([BLAH7](ht
 ## Goal
 We want to map the dependency trees of NLP, onto the intuitive semantic structures of [VSM](https://vsm.github.io) (Visual Syntax Method).
 
-"Covid-19" is the theme of the hackathon, so we would:
-- focus on **Covid-19 literature**,
-- design how Covid-19-related **syntax trees** can be **converted to VSM semantics**,
-- (and perhaps) discuss how this can facilitate **semantic queries** over multidisciplinary Covid-19 knowledge, in a form that **biomedical end-users can grasp**.
+"Covid-19" is the theme of the hackathon, so we would:  
+• focus on **Covid-19 literature**,  
+• design how Covid-19-related **syntax trees** can be **converted to VSM semantics**,  
+• discuss how this can facilitate **semantic queries** over multidisciplinary Covid-19 knowledge, in a form that **biomedical end-users can grasp**.
 
 ### About VSM
 VSM is an intuitive way to represent any contextualized knowledge on any topic, in a form that is semantically precise and also easy to understand. Biologists and others often tell they find VSM intuitive because it shows computable knowledge in a form close to _"how they think"_.
@@ -17,9 +17,9 @@ VSM is an intuitive way to represent any contextualized knowledge on any topic, 
 VSM is both a **knowledge representation** and an **interface** for entering, editing, or simply displaying knowledge in this form – the latter is the use-case for this project.  
 All info on VSM is on [**vsm.github.io**](https://vsm.github.io), &nbsp;see esp. the [vsm-box](https://vsm.github.io/demo) demo and the [causalBuilder](https://mi2cast.github.io/causalBuilder) use case.
 
-When context-rich knowledge is represented in VSM,
-- it can be placed in a [**vsm-box**](https://github.com/vsm/vsm-box) user-interface, where it becomes easy to read, **edit**, or correct by biologists – which may serve as feedback for NLP;
-- the knowledge is then **formalized and queryable** – via [**vsm-to-rdf**](https://github.com/vsm/vsm-to-rdf).
+When context-rich knowledge is represented in VSM,  
+• it can be placed in a [**vsm-box**](https://github.com/vsm/vsm-box) user-interface, where it becomes easy to read, **edit**, or correct by biologists – which may serve as feedback for NLP;  
+• the knowledge is then **formalized and queryable** – via [**vsm-to-rdf**](https://github.com/vsm/vsm-to-rdf).
 
 
 <br>
