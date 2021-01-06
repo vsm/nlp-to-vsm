@@ -1,7 +1,7 @@
 # nlp-to-vsm
 **Converting NLP dependency trees, to semantic structures in VSM.**
 
-This is a project for the 7th Biomedical Linked Annotation Hackathon ([BLAH7](https://blah7.linkedannotation.org)).
+This is a project for the 7th Biomedical Linked Annotation Hackathon ([BLAH7](https://blah7.linkedannotation.org)), which will focus on **Covid-19 literature**.
 
 Overview:
 
@@ -11,7 +11,7 @@ Overview:
 ## Goal
 We want to map the dependency trees of NLP, onto the intuitive semantic structures of [VSM](https://vsm.github.io) (Visual Syntax Method).
 
-"Covid-19" is the theme of the hackathon, so we would:  
+"Covid-19" is the theme of the hackathon, so we would like to:  
 • focus on **Covid-19 literature**,  
 • design how Covid-19-related **syntax trees** can be **converted to VSM semantics**,  
 • discuss how this can facilitate **semantic queries** over multidisciplinary Covid-19 knowledge, in a form that **biomedical end-users can grasp**.
@@ -38,7 +38,7 @@ This means that:
 - all relevant entities should ideally be mapped onto a readable string + an identifier (e.g. URIs, see also [vsm-PubDictionaries](https://github.com/UniBioDicts/vsm-pubdictionaries) and  [paper](https://doi.org/10.37044/osf.io/gzfa8)),
 - these term+ID units should be meaningfully connected with ‘VSM-connectors’ – which express an elementary semantics with: • triples (always `relation-entity has-subject subject-entity; has-object object-entity`), • couples, • lists, and • coreferences – as described in the [VSM paper](https://www.preprints.org/manuscript/202007.0486).
 
-Covid-19 literature spans across **multiple** biological scales, and covers multiple research areas. Nevertheless, knowledge from any of these areas can be represented in the same, quick-to-understand semantic form of VSM (second image below).
+**Covid-19 literature** spans across **multiple** biological scales, and covers multiple research areas. Nevertheless, knowledge from any of these areas can be represented in the same, quick-to-understand semantic form of VSM (second image below).
 
 For example this Enju output (from [PubAnnotation.org](http://www.pubannotation.org), bottom image), on a subject within molecular biology :
 
@@ -108,9 +108,9 @@ The Stanza UD output for the earlier example is:
 Once we can translate NLP output to VSM, we can automatically convert the [VSM to RDF](https://github.com/vsm/vsm-to-rdf) (among others), and store it in a triplestore.
 
 - So next, we could also discuss how to represent SPARQL queries in VSM.  
-Mapping VSM to SPARQL would make it easier to **formulate semantic queries** as well. This could give our biomedical experts their independent power to wield semantic technologies against Covid-19. It would give them a practical tool to query deep semantic knowledge structures, extracted from literature.
+Mapping VSM to SPARQL would make it easier to **formulate semantic queries** as well. This could give our biomedical experts a more independent power to wield semantic technologies against Covid-19. It would give them a practical tool to query deep semantic knowledge structures, extracted from literature.
 
 
 ### A necessary ambition
 
-It is important to realize that this project is quite ambitious and could very well become the subject of an X-year/Y-people research project. So we want to emphasize that our main goal – apart from some preliminary coding – is to **initiate discussions and intellectual crossovers** towards achieving these goals.
+This project is quite ambitious and may eventually become the topic of an X-people-year project. Therefore we want to emphasize that our main goal – apart from some preliminary coding – is to **initiate discussions and intellectual crossovers** towards achieving these goals.
