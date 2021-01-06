@@ -1,7 +1,12 @@
 # nlp-to-vsm
-**From NLP dependency structures to semantics in VSM.**
+**Converting NLP dependency trees, to semantic structures in VSM.**
 
 This is a project for the 7th Biomedical Linked Annotation Hackathon ([BLAH7](https://blah7.linkedannotation.org)).
+
+Overview:
+
+<img src="img/nlp-vsm-etc.svg">
+
 
 ## Goal
 We want to map the dependency trees of NLP, onto the intuitive semantic structures of [VSM](https://vsm.github.io) (Visual Syntax Method).
