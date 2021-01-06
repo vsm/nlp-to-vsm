@@ -1,7 +1,7 @@
 # nlp-to-vsm
 **Converting NLP dependency trees, to semantic structures in VSM.**
 
-This is a project for the 7th Biomedical Linked Annotation Hackathon ([BLAH7](https://blah7.linkedannotation.org)), which will focus on **Covid-19 literature**.
+This is a project for the 7th Biomedical Linked Annotation Hackathon ([BLAH7](https://blah7.linkedannotation.org)), with a focus on **Covid-19 literature**.
 
 Overview:
 
