@@ -94,21 +94,20 @@ The Stanza UD output for the earlier example is:
 
 ## This project is particularly looking for:
 
-- People who are knowledgeable in NLP –
-  (as this project owner's expertise is with biocurators, semantic tech, and user interface design).
-- It would be great to **discuss** the ins and outs of dependency types,
-- and to come up with clever **ideas for mapping dependency relations onto VSM semantics**, structurally (i.e. VSM-connectors),
-- and for **mapping certain terms onto IDs**, where possible (e.g. relation IDs, and prepositions as relations),
-- and for **which parts of a sentence to select** for conversion (e.g. discard filler text),
-- and perhaps **to simplify some parts** (e.g. "production-of --> ROI" could become one GO-term like "ROS biosynthesis").
+- People with diverse expertise in NLP – (as this project owner's expertise is with biocurators, semantic tech, etc).
+- It would be great to **have discussions** about dependency types and semantics, and to come up with ideas for:
+  - how to **map dependency relations onto VSM semantics**, structurally (i.e. VSM-connectors),
+  - how to **map certain terms onto IDs**, where possible (e.g. relation IDs, and prepositions as relations),
+  - which **parts of a sentence to select** for conversion (e.g. discard filler text),
+  - how to **simplify some parts** (e.g. the structure "production-of &rarr; ROI" could become one GO-term like "ROS biosynthesis").
 
 
 ### Further ideas
 
 Once we can translate NLP output to VSM, we can automatically convert the [VSM to RDF](https://github.com/vsm/vsm-to-rdf) (among others), and store it in a triplestore.
 
-- So next, we could also discuss how to represent SPARQL queries in VSM.  
-Mapping VSM to SPARQL would make it easier to **formulate semantic queries** as well. This could give our biomedical experts a more independent power to wield semantic technologies against Covid-19. It would give them a practical tool to query deep semantic knowledge structures, extracted from literature.
+- Then we could discuss how to **represent SPARQL queries in VSM** form as well.  
+Making it easier to **formulate semantic queries** like this, could give our biomedical experts a more independent power to wield semantic technologies against Covid-19. It would give them a practical tool to query deep semantic knowledge structures, extracted from literature.
 
 
 ### A necessary ambition
