@@ -112,4 +112,9 @@ Making it easier to **formulate semantic queries** like this, could give our bio
 
 ### A necessary ambition
 
-This project is quite ambitious and may eventually become the topic of an X-people-year project. Therefore we want to emphasize that our main goal – apart from some preliminary coding – is to **initiate discussions and intellectual crossovers** towards achieving these goals.
+This project is quite ambitious and may eventually become the topic of an X-people-year project. Therefore we want to emphasize that our main goal – apart from some preliminary coding – is to **initiate discussions and intellectual cross-pollinations** towards achieving these goals.
+
+
+### Q&amp;A
+
+Questions &amp; answers and **further thoughts** are collected in GitHub [**Issues**](https://github.com/vsm/nlp-to-vsm/issues).
