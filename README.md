@@ -7,6 +7,10 @@ Overview:
 
 <img src="img/nlp-vsm-etc.svg">
 
+Presentation video:
+
+[![](http://img.youtube.com/vi/0kHWBZIL04E/0.jpg)](http://www.youtube.com/watch?v=0kHWBZIL04E "Animation: From a natural language sentence to a VSM semantic structure.")
+
 
 ## Goal
 We want to map the dependency trees of NLP, onto the intuitive semantic structures of [VSM](https://vsm.github.io) (Visual Syntax Method).
