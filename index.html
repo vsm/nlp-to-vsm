@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+<!--
+By:
+- Steven Vercruysse (https://orcid.org/0000-0002-3136-7353)
+
+
+TODO:
+
+- Combine with other parser-outputs,
+  to generate proper ontology/CV IDs for some terms.
+
+- Where possible: make an additional mapping to a VSM-sentence that expresses
+  'higher level' information, like: "protein X upregulates protein Y".
+  This is probably easiest by starting from the first VSM-sentence
+  (which is an already semantified basis), and inferring the additional fact.
+
+- Generate list-connectors where needed.
+  - Note: check if commas (which get deleted) give any helpful info for deciding
+    whether to create a list-connector.
+- Generate coreference-connectors where needed, if possible.
+
+- Remove passive 'by', e.g. 'caused by'.
+  + 'caused' seems to have the trident in the correct, inverse direction already.
+  - How to detect it's a passive construct? - Check: needs any further processing?
+- Join verbs with their particles, e.g. 'resulting from'.
+
+- Handle uncommon predicates: 'arg3of', 'modOf', more?
+
+- Convert tridents over structures like "(nounified-verb, 'of', smth)"
+  to proper sobi-bidents without the 'of', like "(-, nounified-verb, smth)".
+  For example: 'adhesion -> of -> cells' ==> '- -> adhesion -> cells'.
+
+- Handle distributive structures:
+
+-->
+
+  <!--
+  <script src="https://unpkg.com/vsm-pubdictionaries@^1.0.0/dist/vsm-pubdictionaries.min.js"></script>
+  <script src="https://unpkg.com/vsm-dictionary-uniprot@^1.0.5/dist/vsm-dictionary-uniprot.min.js"></script>
+  Etc.
+  <script src="vsm-box.standalone.min.js"></script>
+  -->
+  <script src="https://unpkg.com/vsm-box@^1.0.0/dist/vsm-box.standalone.min.js"></script>
+
+  <style>
+    body, textarea, input { font-size: 11px; font-family: Verdana, Arial, sans-serif; }
+    button,  input { margin: 0; }
+    body        { margin: 0 0 60px 20px; }
+    #exButtons  { margin: 0 0 0 0; min-height: 20px; }
+    #exButtons button  { margin: 0 6px 0 0; padding: 0 9px; }
+    .title      { margin: 30px 0 5px 0; color: #555; font-weight: bold; }
+    .title.exbt { margin-top: 12px; }
+    .title.nat  { margin-top: 26px; }
+    .title.json { margin-top: 60px; }
+    .title.log  { margin-top: 75px; }
+    .title .note    { color: #aaa; font-weight: normal; margin: 0 0 0 6px;}
+    .title a[href]  { color: #559; text-decoration: none; }
+    .title a[href]:hover  { text-decoration: underline; }
+    #text    { margin: 0 0 0 0; min-width: 640px; min-height: 40px; }
+    #msg     { margin: 3px 0 3px 8px; min-height: 20px; color: #888;
+               font-weight: normal; font-style: italic; }
+    .preText { margin: 0 0 0 0; white-space: pre; color: #555;
+      font-size: 11px;  font-family: consolas, courier, monospace; }
+
+    /* Neutralize button appearance. */
+    button { appearance: none;  outline: none;  box-sizing: border-box;
+      height: 19px;  padding: 0 8px;  border-radius: 1px;
+      border: 0.5px solid #adadad;  transition: background 0.05s, transform 0.05s; }
+    button        { background: #e4e4e4;  user-select: none; }
+    button:hover  { background: #d8d8d8; }
+    button:active { background: #c6c6c6;  transform: scale(0.99) translate(0.3px, 0); }
+  </style>
+</head>
+
+
+<body>
+  <div      class="title exbt">Examples:</div>
+  <div      id="exButtons"></div>
+  <div      class="title nat">Natural language sentence:
+    <span class="note">(editable):</span>
+  </div>
+  <textarea id="text"></textarea>
+  <div      class="title vsm">Via NLP to <a href="https://vsm.github.io">VSM</a>:
+    <span   id="msg"></span>
+  </div>
+  <vsm-box  id="vsmBox"></vsm-box>
+  <div      class="title json">VSM-JSON5:</div>
+  <div      id="vsmJSON" class="preText"></div>
+  <div      class="title log">Conversion log:</div>
+  <div      id="log" class="preText"></div>
+</body>
+
+
+<script>
+  var elExButtons = document.getElementById('exButtons');
+  var elMsg   = document.getElementById('msg');
+  var elText  = document.getElementById('text');
+  var elVSMJS = document.getElementById('vsmJSON');
+  var vsmBox  = document.getElementById('vsmBox');
+  var elLog   = document.getElementById('log');
+
+  /*
+  // Initialize the vsm-dictionaries,
+  // bundle them into a dictionary-combiner wrapped in a cacher,
+  // and connect this combined dictionary to the vsm-box.
+  var CachedDictCombiner = VsmDictionaryCacher(VsmDictionaryCombiner, { predictEmpties: false });
+  vsmBox.vsmDictionary = new CachedDictCombiner({
+    dictionaries: [
+      new VsmPubDictionaries({ suggest: 'substring' }),
+      new VsmDictionaryUniProt(),
+    ],
+  }); /**/
+
+
+  /*
+  // Configure the vsm-box. Set an explicit, vsm-box wide term filter.
+  // A filter is only required when including PubDictionaries in autocomplete.
+  vsmBox.queryOptions = {
+    filter: { dictID: [
+      'http://pubdictionaries.org/dictionaries/demo-Persons',
+      'http://pubdictionaries.org/dictionaries/demo-Animals',  // etc.
+      'https://www.uniprot.org',
+    ] },
+    perPage: 20,
+  }; /**/
+
+  vsmBox.sizes = {
+    minWidth: 200,
+    minEndTermWidth: 50,
+    minEndTermWideWidth: 50,
+    connFootVisible: true
+  };
+
+
+  function log(s) {
+    ///console.log(s);
+    elLog.innerHTML += s + '\n';
+  }
+
+
+  function getEnjuParse(text, cb) {
+    // See: http://pubannotation.org/annotators/EnjuParser?utf8=✓&text=Covid-19+is+a+respiratory+disease.
+    // and: http://enju.dbcls.jp/?mode=PAS&model=GENIA&parser=Enju&text=Covid-19+is+a+respiratory+disease.
+    // Note: 'enju.dbcls.jp' causes a CORS error:
+    //   Cross-Origin Request Blocked:
+    //   The Same Origin Policy disallows reading the remote resource at ...
+    //   (Reason: CORS header ‘Access-Control-Allow-Origin’ missing).
+    // Temporary workaround: use a proxy server.
+    var proxyURL = 'https://cors-anywhere.herokuapp.com/';
+    var baseURL = 'http://enju.dbcls.jp/?mode=PAS&model=GENIA&parser=Enju';
+    fetch(proxyURL + baseURL, { method: 'POST', body: text })
+      .then(response => response.json())
+      .then(enjuData => {
+        log('- Enju:');
+        enjuData.denotations.forEach(o => log('d: ' + prettyJSON(o)));
+        enjuData.relations  .forEach(o => log('r: ' + prettyJSON(o)));
+        cb(null, enjuData);
+      })
+      .catch(err => cb(err));
+  }
+
+
+
+  function prettyJSON(o) {
+    return JSON.stringify(o) .replace(/"([a-z0-9_]+?)":/gi, '$1: ')
+      .replace(/([{,])/g, '$1 ') .replace(/(})/g, ' $1');
+  }
+
+
+  function prettyVSMJSON(vsm) {
+    var s =
+      '{ terms: [' + vsm.terms.map(o => '\n    ' + prettyJSON(o)).join(',') + '\n  ],\n' +
+      '  conns: [' + vsm.conns.map(o => '\n    ' + prettyJSON(o)).join(',') + '\n  ]\n}';
+    var maxTermLen = Math.max(...vsm.terms.map(term => term.str.length));
+    return s
+      .replace(/(str: ".*?",)/g, (m, $1) => $1.padEnd(maxTermLen + 8, ' '));
+  }
+
+
+
+
+
+  function vsmify(enju) {
+    var text = enju.text;
+
+    // Map `terms` to an easier-to-use form.
+    var terms = enju.denotations.map(o => ({
+      ///i:   ~~o.id.substr(1),  // (=index in the terms array).
+      ///a:   o.span.begin,
+      ///z:   o.span.end,
+      str: text.substring(o.span.begin, o.span.end),
+      tag: o.obj
+    }));
+
+
+    // Some shorthand functions.
+    const str = i => terms[i].str;
+    const tag = i => terms[i].tag;
+    const rel = p => ({ s: 'subj', o: 'obj', a: 'attr' }[p] || '?');
+    const reverse = c => { var tmp = c.s;  c.s = c.o;  c.o = tmp; }
+
+
+    // Map `relations` to `relas`: intermediary objects before making VSM-conns.
+    // `relas[*].p`: preliminary mapping on a subject|object primitive-relation.
+    var relas = enju.relations.map(o => ({
+      ///i: ~~o.id.substr(1),
+      s: ~~o.obj .substr(1),  // Index of this primitive-rel.'s subject-term.
+      p: [ '?', 's', 'o' ][~~o.pred.replace(/^arg(.)Of$/, '$1')],
+      o: ~~o.subj.substr(1),
+    }));
+
+    // Add a dev-friendly string of what this rela-triple currently represents.
+    relas.forEach(c => c.txt = `${ str(c.s) } (${ rel(c.p) }) ${ str(c.o) }`);
+
+    log('- Preprocessed, 1:');
+    terms.forEach(o => log('term: ' + prettyJSON(o)));
+    relas.forEach(o => log('rela: ' + prettyJSON(o)));
+
+
+    // Process the `relas` objects further, to more closely match VSM-connectors.
+    // + FYI: https://www.winwaed.com/blog/2011/11/08/part-of-speech-tags .
+    relas.forEach(c => {
+      // - For adjectives, adverbs, numbers (part-of-speech tags),
+      //   that according to Enju have as arg1 (≈subj) their main term:
+      //   reverse the rela and make it an 'attribute' primitive-relation.
+      //   So for example:   JJ -s-> *  ==>  * -a-> JJ .
+      // - Also do that for nouns as attr.:  NN_1 -s-> NN_2 ==> NN_2 -s-> NN_1.
+      //   - (Note: alternatively, NN+NN could be merged into a single VSM-term).
+      const numberTags    = [ 'CD' ];
+      const adjectiveTags = [ 'JJ', 'JJR', 'JJS' ];
+      const adverbTags    = [ 'RB', 'RBR', 'RBS' ];
+      const nounTags      = [ 'NN', 'NNS', 'NNP', 'NNPS' ];
+      const reverseAnySFrom = numberTags.concat(adjectiveTags).concat(adverbTags);
+      if (c.p == 's'  &&
+          ( reverseAnySFrom.includes(tag(c.s)) ||
+            ( nounTags.includes(tag(c.s))  &&  nounTags.includes(tag(c.o)) )
+          )
+      ) {
+        reverse(c);
+        c.p = 'a';
+      }
+
+      // Delete: any '-s->' rela from:
+      // - a determiner term (a/the/...),
+      // - a 'that' conjuction,
+      // - a 'which' determiner,
+      // - a comma.
+      if (  c.p == 's' &&
+            ( (tag(c.s) == 'DT')  ||
+              (tag(c.s) == 'IN'  &&  str(c.s) == 'that')  ||
+              (tag(c.s) == 'WDT')  ||
+              (tag(c.s) == '-COMMA-')  /// ',' == str(c.s)
+            )
+        ) {
+        c.del = true;
+      }
+
+      // Update this rela's dev-friendly string representation.
+      c.txt = `${ str(c.s) } (${ rel(c.p) }) ${ str(c.o) }`;
+    });
+
+    log('- Preprocessed, 2:');
+    ///terms.forEach(o => log('term: ' + prettyJSON(o)));
+    relas.forEach(o => log('rela: ' + prettyJSON(o)));
+
+
+    // Process relas marked for deletion.
+    relas = relas.filter(c => !c.del);
+
+
+    // Mark for removal: terms not connected by a rela anymore. E.g. determiners.
+    relas.forEach(c => {
+      if (c.p == '?')  return;                   // Ignore unrecognized relas.
+      terms[c.s].keep = terms[c.o].keep = true;  // Flag the terms to keep.
+    });
+    if (relas.length == 0) {  // Don't remove terms if no relas are present, e.g.
+      terms.forEach(term => term.keep = true);   // ..for a single-word sentence.
+    }
+
+    for (var i = 0;  i < terms.length;  i++) {
+      if (!terms[i].keep) {
+        terms.splice(i, 1);
+        relas.forEach(c => {
+          if (c.s >= i)  c.s--;
+          if (c.o >= i)  c.o--;
+        });
+        i--;
+      }
+      else delete terms[i].keep;
+    }
+
+
+    log('- Preprocessed, 3:');
+    terms.forEach(o => log('term: ' + prettyJSON(o)));
+    relas.forEach(o => log('rela: ' + prettyJSON(o)));
+
+
+
+    // Create valid VSM-terms.
+    var terms = terms.map(t => {
+      var classID = null;  // Ideally, an ontology ID would be filled in here.
+      return { str: t.str, classID, instID: null };
+    });
+
+
+    // Map the relas onto VSM bidents only, as preliminary conns.
+    var conns = relas.reduce((conns, rela) => {
+      var pos =
+        rela.p == 's' ?  [ rela.o, rela.s,     -1 ] :
+        rela.p == 'o' ?  [     -1, rela.s, rela.o ] :
+        rela.p == 'a' ?  [ rela.s,     -1, rela.o ] : 0;
+      return conns.concat(pos ?  { type: 'T', pos } :  []);
+    }, []);
+
+
+    log('- VSMified conns, 1:');
+    conns.forEach(o => log('conn: ' + prettyJSON(o)));
+
+
+    // Merge corresponding oobi-bidents and sobi-bidents, to make tridents.
+    conns = conns.reduce((newConns, c) => {
+      var fill = -1;
+      for (var i = 0;  i < newConns.length && fill < 0;  i++) {
+        var nc = newConns[i];
+        if (nc.type == 'T'  &&  c.type == 'T'  &&  nc.pos[1] == c.pos[1]) {  // Same relation term?
+          if (nc.pos[0] == -1  &&  c.pos[2] == -1)  fill = 0;  // sobi + oobi ?
+          if (nc.pos[2] == -1  &&  c.pos[0] == -1)  fill = 2;  // oobi + sobi ?
+        }
+        if (fill >= 0)  nc.pos[fill] = c.pos[fill];  // Merge with earlier bident.
+      }
+      if (fill < 0)  newConns.push(c);  // Add this unmatched bident to newConns.
+      return newConns;
+    }, []);
+
+
+    log('- VSMified conns, 2:');
+    conns.forEach(o => log('conn: ' + prettyJSON(o)));
+
+
+    // If both a robi-bident and a trident connect a subj to an obj, then remove
+    // the robi-bident. Because e.g. 'demo is good' gets an extra 'S-attr->O'.
+    conns = conns.filter((c, i) => {
+      if (c.type == 'T'  &&  c.pos[1] == -1) {
+        var matchingConns = conns.filter((d, j) =>  i != j  &&
+          d.type == 'T'  &&  c.pos[0] == d.pos[0]  &&  c.pos[2] == d.pos[2]
+        );
+        if (matchingConns.length)  return false
+      }
+      return true;
+    });
+
+
+    log('- VSMified:');
+    terms.forEach(o => log('term: ' + prettyJSON(o)));
+    conns.forEach(o => log('conn: ' + prettyJSON(o)));
+
+    return { terms, conns };
+  }
+
+
+
+
+
+  function nlpToVSM(text, cb) {
+    if (text == 'demo') {  // For dev: return a demo-object for text 'demo'.
+      var demoData = {
+        text: 'Covid-19 is a respiratory disease.',
+        denotations: [
+          { id: 'T0',  span: { begin:  0, end:  8 },  obj: 'NN' },
+          { id: 'T1',  span: { begin:  9, end: 11 },  obj: 'VBZ' },
+          { id: 'T2',  span: { begin: 12, end: 13 },  obj: 'DT' },
+          { id: 'T3',  span: { begin: 14, end: 25 },  obj: 'JJ' },
+          { id: 'T4',  span: { begin: 26, end: 33 },  obj: 'NN '}
+        ],
+        relations: [
+          { id: 'R0',  subj: 'T0',  obj: 'T1',  pred: 'arg1Of' },
+          { id: 'R1',  subj: 'T4',  obj: 'T1',  pred: 'arg2Of' },
+          { id: 'R2',  subj: 'T4',  obj: 'T2',  pred: 'arg1Of' },
+          { id: 'R3',  subj: 'T4',  obj: 'T3',  pred: 'arg1Of' }
+        ]
+      };
+      return gotEnjuData(null, demoData);
+    }
+
+    getEnjuParse(text, gotEnjuData);
+
+    function gotEnjuData(err, enjuData) {
+      var vsm = vsmify(enjuData);
+      cb(vsm);
+    };
+  }
+
+
+
+  function processNewText(text) {
+    elMsg.innerHTML = 'Processing...';
+    elLog.innerHTML = '';
+    log(`- Processing text:\n"${ text }"`);
+    nlpToVSM(text, vsm => {
+      if (prevText == text) {  // Make sure not to show stale (late) results.
+        elMsg  .innerHTML = '';
+        elVSMJS.innerHTML = prettyVSMJSON(vsm);
+        vsmBox.initialValue = vsm;
+      }
+    });
+  }
+
+
+
+  function debounce(func, delay) {
+    var timeout;
+    return () => {
+      var that = this, args = arguments;
+      var later = () => {
+        timeout = null;
+        func.apply(that, args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, delay);
+    };
+  };
+
+
+  function onElTextInput(ev) {  // Called when users edit the textfield.
+    var text = elText.value.replace(/[\r\n]+/g, ' ');
+    if (text != prevText) {
+      prevText = text;
+      processNewText(text);
+    }
+  }
+
+
+  function setText(text, delay = 0) {  // Called by our code to put new text in textfield.
+    if (typeof text == 'number')  text = examples[text];  // text is number? => use that example nr.
+    elText.value = prevText = text;
+    setTimeout(() => processNewText(text), delay);
+  }
+
+
+  function addExampleButtons(examples) {
+    elExButtons.innerHTML = examples
+      .map((text, i) => `<button onclick="setText(${ i })">${ i + 1 }</button>`)
+      .join('');
+  }
+
+
+
+  var prevText = '';
+  elText.value = prevText;  // Reset the textfield on page-reload.
+  elText.addEventListener('input', debounce(onElTextInput, 500));
+
+  const vsmEmpty = { terms: [], conns: [] };
+  elVSMJS.innerHTML = prettyVSMJSON(vsmEmpty);
+
+
+  const examples = [
+    'synthetic multivalent sialyl Lewis x glycans inhibit strongly the adhesion of lymphocytes to endothelium at sites of inflammation.',
+    //'Covid-19 is a respiratory disease.',
+    //'Covid-19 is a severe respiratory disease.',
+    'Covid-19 is a severe respiratory disease caused by a virus originating from Wuhan.',
+    //'Covid-19 is a severe respiratory disease resulting from a virus originating from Wuhan.',
+    'ROI production and NF-kappaB activation, which could both be blocked by antioxidants or FLAP inhibitors',
+    'Vaccine development for severe acute respiratory syndrome coronavirus 2 (SARS-CoV-2) is focused on the trimeric spike protein that initiates infection.',
+    'Steven thinks that VSM is the most practical method for representing contextualized knowledge in a form that computers can soon reason with.',
+    //'Authorities in the US require a negative COVID-19 test before traveling to the US, starting Jan. 26.',
+    //'Covid-19 is a severe respiratory disease entailing that a pathogen enters the body, and multiplies a lot.',
+  ]
+  addExampleButtons(examples);
+  elText.focus();
+
+  //setText('demo', 500);
+  setText('Covid-19 is a severe respiratory disease.', 500);
+  //setText(examples[0], 500);
+
+</script>
+</html>

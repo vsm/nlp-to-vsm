@@ -10,3 +10,4 @@ secret*
 *.lnk
 *.url
 *.sublime*
+vsm-box.standalone.min.js
