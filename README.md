@@ -3,6 +3,8 @@
 
 This is a project for the 7th Biomedical Linked Annotation Hackathon ([BLAH7](https://blah7.linkedannotation.org)), with a focus on **Covid-19 literature**.
 
+Demo of work-in-progress: [vsm.github.io/nlp-to-vsm](https://vsm.github.io/nlp-to-vsm).
+
 Overview:
 
 <img src="img/nlp-vsm-etc.svg">
