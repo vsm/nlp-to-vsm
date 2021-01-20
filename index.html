@@ -53,15 +53,16 @@ TODO:
     #exButtons button  { margin: 0 6px 0 0; padding: 0 9px; }
     .title      { margin: 30px 0 5px 0; color: #555; font-weight: bold; }
     .title.exbt { margin-top: 12px; }
-    .title.nat  { margin-top: 26px; }
+    .title.nat  { margin-top: 30px; }
     .title.json { margin-top: 60px; }
-    .title.log  { margin-top: 75px; }
+    .title.log  { margin-top: 70px; }
     .title .note    { color: #aaa; font-weight: normal; margin: 0 0 0 6px;}
     .title a[href]  { color: #559; text-decoration: none; }
     .title a[href]:hover  { text-decoration: underline; }
+    #text::placeholder { color: #888; }
     #text    { margin: 0 0 0 0; min-width: 640px; min-height: 40px; }
-    #msg     { margin: 3px 0 3px 8px; min-height: 20px; color: #888;
-               font-weight: normal; font-style: italic; }
+    #msg     { margin: 3px 0 3px 8px; min-height: 20px; color: #555;
+               /*font-weight: normal;*/ font-style: italic; }
     .preText { margin: 0 0 0 0; white-space: pre; color: #555;
       font-size: 11px;  font-family: consolas, courier, monospace; }
 
@@ -80,9 +81,9 @@ TODO:
   <div      class="title exbt">Examples:</div>
   <div      id="exButtons"></div>
   <div      class="title nat">Natural language sentence:
-    <span class="note">(editable):</span>
+    <span class="note">(live-editable):</span>
   </div>
-  <textarea id="text"></textarea>
+  <textarea id="text" placeholder="Type some text, or click an example button..."></textarea>
   <div      class="title vsm">Via NLP to <a href="https://vsm.github.io">VSM</a>:
     <span   id="msg"></span>
   </div>
@@ -141,27 +142,21 @@ TODO:
   }
 
 
-  function getEnjuParse(text, cb) {
-    // See: http://pubannotation.org/annotators/EnjuParser?utf8=✓&text=Covid-19+is+a+respiratory+disease.
-    // and: http://enju.dbcls.jp/?mode=PAS&model=GENIA&parser=Enju&text=Covid-19+is+a+respiratory+disease.
-    // Note: 'enju.dbcls.jp' causes a CORS error:
-    //   Cross-Origin Request Blocked:
-    //   The Same Origin Policy disallows reading the remote resource at ...
-    //   (Reason: CORS header ‘Access-Control-Allow-Origin’ missing).
-    // Temporary workaround: use a proxy server.
-    var proxyURL = 'https://cors-anywhere.herokuapp.com/';
-    var baseURL = 'http://enju.dbcls.jp/?mode=PAS&model=GENIA&parser=Enju';
-    fetch(proxyURL + baseURL, { method: 'POST', body: text })
-      .then(response => response.json())
-      .then(enjuData => {
-        log('- Enju:');
-        enjuData.denotations.forEach(o => log('d: ' + prettyJSON(o)));
-        enjuData.relations  .forEach(o => log('r: ' + prettyJSON(o)));
-        cb(null, enjuData);
-      })
-      .catch(err => cb(err));
+
+  function logList(arr, prefix, maxArrLen = 0) {
+    const padLen = `${ Math.max(arr.length, maxArrLen) - 1 }`.length;
+    const pad    = i => `${ i }`.padStart(padLen, ' ');
+    arr.forEach((o, i) => log(`${ prefix } ${ pad(i) }: ${ prettyJSON(o) }`));
   }
 
+
+  function logLists(title, ...restArgs) {  // Makes multiple calls to `logList()`.
+    var maxArrLen = Math.max(...restArgs.filter((a, i) => !(i%2)).map(a => a.length));
+    log(`- ${ title }:`);
+    for (i = 0;  i < restArgs.length - 1;  i += 2) {
+      logList(restArgs[i], restArgs[i + 1], maxArrLen);
+    }
+  }
 
 
   function prettyJSON(o) {
@@ -177,6 +172,27 @@ TODO:
     var maxTermLen = Math.max(...vsm.terms.map(term => term.str.length));
     return s
       .replace(/(str: ".*?",)/g, (m, $1) => $1.padEnd(maxTermLen + 8, ' '));
+  }
+
+
+
+  function getEnjuParse(text, cb) {
+    // See: http://pubannotation.org/annotators/EnjuParser?utf8=✓&text=Covid-19+is+a+respiratory+disease.
+    // and: http://enju.dbcls.jp/?mode=PAS&model=GENIA&parser=Enju&text=Covid-19+is+a+respiratory+disease.
+    // Note: 'enju.dbcls.jp' causes a CORS error:
+    //   Cross-Origin Request Blocked:
+    //   The Same Origin Policy disallows reading the remote resource at ...
+    //   (Reason: CORS header ‘Access-Control-Allow-Origin’ missing).
+    // Temporary workaround: use a proxy server.
+    var proxyURL = 1 ? 'https://cors-anywhere.herokuapp.com/' : '';
+    var baseURL = 'http://enju.dbcls.jp/?mode=PAS&model=GENIA&parser=Enju';
+    fetch(proxyURL + baseURL, { method: 'POST', body: text })
+      .then(response => response.json())
+      .then(enjuData => {
+        logLists('Enju',  enjuData.denotations, 'd',  enjuData.relations, 'r');
+        cb(null, enjuData);
+      })
+      .catch(err => cb(err));
   }
 
 
@@ -215,25 +231,24 @@ TODO:
     // Add a dev-friendly string of what this rela-triple currently represents.
     relas.forEach(c => c.txt = `${ str(c.s) } (${ rel(c.p) }) ${ str(c.o) }`);
 
-    log('- Preprocessed, 1:');
-    terms.forEach(o => log('term: ' + prettyJSON(o)));
-    relas.forEach(o => log('rela: ' + prettyJSON(o)));
+    logLists('Preprocessed, 1',  terms, 'term',  relas, 'rela');
 
 
     // Process the `relas` objects further, to more closely match VSM-connectors.
     // + FYI: https://www.winwaed.com/blog/2011/11/08/part-of-speech-tags .
     relas.forEach(c => {
-      // - For adjectives, adverbs, numbers (part-of-speech tags),
+      // - For certain part-of-speech tags (adjectives, adverbs, numbers,
+      //   determiners, etc.),
       //   that according to Enju have as arg1 (≈subj) their main term:
       //   reverse the rela and make it an 'attribute' primitive-relation.
       //   So for example:   JJ -s-> *  ==>  * -a-> JJ .
       // - Also do that for nouns as attr.:  NN_1 -s-> NN_2 ==> NN_2 -s-> NN_1.
       //   - (Note: alternatively, NN+NN could be merged into a single VSM-term).
-      const numberTags    = [ 'CD' ];
       const adjectiveTags = [ 'JJ', 'JJR', 'JJS' ];
       const adverbTags    = [ 'RB', 'RBR', 'RBS' ];
+      const etcRevTags    = [ 'CD', 'DT', 'PRP-DOLLAR-' ];
       const nounTags      = [ 'NN', 'NNS', 'NNP', 'NNPS' ];
-      const reverseAnySFrom = numberTags.concat(adjectiveTags).concat(adverbTags);
+      const reverseAnySFrom = adjectiveTags.concat(adverbTags).concat(etcRevTags);
       if (c.p == 's'  &&
           ( reverseAnySFrom.includes(tag(c.s)) ||
             ( nounTags.includes(tag(c.s))  &&  nounTags.includes(tag(c.o)) )
@@ -243,16 +258,25 @@ TODO:
         c.p = 'a';
       }
 
+      // TO DO: handle coordinating conjunctions ('CC').
+
+      // Delete: any '-a->' rela from:
+      // - to determiner term like a/the/... (but not some/all).
+      if (  c.p == 'a' &&
+            (tag(c.o) == 'DT'  &&  [ 'the', 'a', 'an' ].includes(str(c.o)))  ) {
+        c.del = true;
+      }
+
       // Delete: any '-s->' rela from:
-      // - a determiner term (a/the/...),
       // - a 'that' conjuction,
       // - a 'which' determiner,
-      // - a comma.
+      // - a comma or semicolon.
       if (  c.p == 's' &&
-            ( (tag(c.s) == 'DT')  ||
+            ( (tag(c.s) == 'DT'  &&  [ 'the', 'a', 'an' ].includes(str(c.s)))  ||
               (tag(c.s) == 'IN'  &&  str(c.s) == 'that')  ||
               (tag(c.s) == 'WDT')  ||
-              (tag(c.s) == '-COMMA-')  /// ',' == str(c.s)
+              (tag(c.s) == '-COMMA-') ||   /// ',' == str(c.s)
+              (tag(c.s) == '-SEMICOLON-')  /// ';' == str(c.s)
             )
         ) {
         c.del = true;
@@ -262,9 +286,7 @@ TODO:
       c.txt = `${ str(c.s) } (${ rel(c.p) }) ${ str(c.o) }`;
     });
 
-    log('- Preprocessed, 2:');
-    ///terms.forEach(o => log('term: ' + prettyJSON(o)));
-    relas.forEach(o => log('rela: ' + prettyJSON(o)));
+    logLists('Preprocessed, 2',  relas, 'rela');
 
 
     // Process relas marked for deletion.
@@ -292,10 +314,7 @@ TODO:
       else delete terms[i].keep;
     }
 
-
-    log('- Preprocessed, 3:');
-    terms.forEach(o => log('term: ' + prettyJSON(o)));
-    relas.forEach(o => log('rela: ' + prettyJSON(o)));
+    logLists('Preprocessed, 3',  terms, 'term',  relas, 'rela');
 
 
 
@@ -315,9 +334,7 @@ TODO:
       return conns.concat(pos ?  { type: 'T', pos } :  []);
     }, []);
 
-
-    log('- VSMified conns, 1:');
-    conns.forEach(o => log('conn: ' + prettyJSON(o)));
+    logLists('VSMified conns, 1',  conns, 'conn');
 
 
     // Merge corresponding oobi-bidents and sobi-bidents, to make tridents.
@@ -335,9 +352,7 @@ TODO:
       return newConns;
     }, []);
 
-
-    log('- VSMified conns, 2:');
-    conns.forEach(o => log('conn: ' + prettyJSON(o)));
+    logLists('VSMified conns, 2',  conns, 'conn');
 
 
     // If both a robi-bident and a trident connect a subj to an obj, then remove
@@ -352,10 +367,8 @@ TODO:
       return true;
     });
 
+    logLists('VSMified',  terms, 'term',  conns, 'conn');
 
-    log('- VSMified:');
-    terms.forEach(o => log('term: ' + prettyJSON(o)));
-    conns.forEach(o => log('conn: ' + prettyJSON(o)));
 
     return { terms, conns };
   }
@@ -367,19 +380,21 @@ TODO:
   function nlpToVSM(text, cb) {
     if (text == 'demo') {  // For dev: return a demo-object for text 'demo'.
       var demoData = {
-        text: 'Covid-19 is a respiratory disease.',
+        text: 'Covid-19 is a severe respiratory disease.',
         denotations: [
           { id: 'T0',  span: { begin:  0, end:  8 },  obj: 'NN' },
           { id: 'T1',  span: { begin:  9, end: 11 },  obj: 'VBZ' },
           { id: 'T2',  span: { begin: 12, end: 13 },  obj: 'DT' },
-          { id: 'T3',  span: { begin: 14, end: 25 },  obj: 'JJ' },
-          { id: 'T4',  span: { begin: 26, end: 33 },  obj: 'NN '}
+          { id: 'T3',  span: { begin: 14, end: 20 },  obj: 'JJ' },
+          { id: 'T4',  span: { begin: 21, end: 32 },  obj: 'JJ' },
+          { id: 'T5',  span: { begin: 33, end: 40 },  obj: 'NN' }
         ],
         relations: [
           { id: 'R0',  subj: 'T0',  obj: 'T1',  pred: 'arg1Of' },
-          { id: 'R1',  subj: 'T4',  obj: 'T1',  pred: 'arg2Of' },
-          { id: 'R2',  subj: 'T4',  obj: 'T2',  pred: 'arg1Of' },
-          { id: 'R3',  subj: 'T4',  obj: 'T3',  pred: 'arg1Of' }
+          { id: 'R1',  subj: 'T5',  obj: 'T1',  pred: 'arg2Of' },
+          { id: 'R2',  subj: 'T5',  obj: 'T2',  pred: 'arg1Of' },
+          { id: 'R3',  subj: 'T5',  obj: 'T3',  pred: 'arg1Of' },
+          { id: 'R4',  subj: 'T5',  obj: 'T4',  pred: 'arg1Of' }
         ]
       };
       return gotEnjuData(null, demoData);
@@ -460,10 +475,13 @@ TODO:
     'synthetic multivalent sialyl Lewis x glycans inhibit strongly the adhesion of lymphocytes to endothelium at sites of inflammation.',
     //'Covid-19 is a respiratory disease.',
     //'Covid-19 is a severe respiratory disease.',
-    'Covid-19 is a severe respiratory disease caused by a virus originating from Wuhan.',
-    //'Covid-19 is a severe respiratory disease resulting from a virus originating from Wuhan.',
+    'Covid-19 is a severe respiratory disease caused by a virus originating from bats.',
+    //'Covid-19 is a severe respiratory disease resulting from a virus originating from bats.',
+    //'Vaccine development for severe acute respiratory syndrome coronavirus 2 (SARS-CoV-2) is focused on the trimeric spike protein that initiates infection.',
+    'vaccine development for SARS-CoV-2 is focused on the trimeric spike protein that initiates infection.',
     'ROI production and NF-kappaB activation, which could both be blocked by antioxidants or FLAP inhibitors',
-    'Vaccine development for severe acute respiratory syndrome coronavirus 2 (SARS-CoV-2) is focused on the trimeric spike protein that initiates infection.',
+    'This is a test of converting NLP output to semantic structures in VSM.',
+    'many people sometimes get very sad because in our society almost nobody takes the responsibility for funding ground-breaking research like VSM.',
     'Steven thinks that VSM is the most practical method for representing contextualized knowledge in a form that computers can soon reason with.',
     //'Authorities in the US require a negative COVID-19 test before traveling to the US, starting Jan. 26.',
     //'Covid-19 is a severe respiratory disease entailing that a pathogen enters the body, and multiplies a lot.',
@@ -472,7 +490,7 @@ TODO:
   elText.focus();
 
   //setText('demo', 500);
-  setText('Covid-19 is a severe respiratory disease.', 500);
+  //setText('Covid-19 is a severe respiratory disease.', 500);
   //setText(examples[0], 500);
 
 </script>
