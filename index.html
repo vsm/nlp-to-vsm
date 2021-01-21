@@ -88,7 +88,7 @@ TODO:
     <span   id="msg"></span>
   </div>
   <vsm-box  id="vsmBox"></vsm-box>
-  <div      class="title json">VSM-JSON5:</div>
+  <div      class="title json">VSM-JSON5<a href="https://vsm.github.io/demo">: &nbsp;</a></div>
   <div      id="vsmJSON" class="preText"></div>
   <div      class="title log">Conversion log:</div>
   <div      id="log" class="preText"></div>
@@ -136,6 +136,16 @@ TODO:
   };
 
 
+  vsmBox.addEventListener('change', event => {
+    var vsm = event.detail[0];
+    if (vsm.terms.length > 0) {
+      log('- VSM, manually edited ' +
+        '(paste this <a href="https://vsm.github.io/demo" target="_blank">here</a>) :');
+      log(prettyVSMJSON(vsm));
+    }
+  });
+
+
   function log(s) {
     ///console.log(s);
     elLog.innerHTML += s + '\n';
@@ -161,7 +171,8 @@ TODO:
 
   function prettyJSON(o) {
     return JSON.stringify(o) .replace(/"([a-z0-9_]+?)":/gi, '$1: ')
-      .replace(/([{,])/g, '$1 ') .replace(/(})/g, ' $1');
+      .replace(/([[{,])/g, '$1 ') .replace(/([\]}])/g, ' $1')
+      .replace(/"(.*?)"/g, (m, $1) => `'${ $1.toString() }'`);
   }
 
 
@@ -169,9 +180,9 @@ TODO:
     var s =
       '{ terms: [' + vsm.terms.map(o => '\n    ' + prettyJSON(o)).join(',') + '\n  ],\n' +
       '  conns: [' + vsm.conns.map(o => '\n    ' + prettyJSON(o)).join(',') + '\n  ]\n}';
-    var maxTermLen = Math.max(...vsm.terms.map(term => term.str.length));
+    var maxTermLen = Math.max(...vsm.terms.map(term => (term.str || '').length));
     return s
-      .replace(/(str: ".*?",)/g, (m, $1) => $1.padEnd(maxTermLen + 8, ' '));
+      .replace(/(str: '(\\'|[^'])*?',)/g, (m, $1) => $1.padEnd(maxTermLen + 8, ' '));
   }
 
 
@@ -485,6 +496,8 @@ TODO:
     'Steven thinks that VSM is the most practical method for representing contextualized knowledge in a form that computers can soon reason with.',
     //'Authorities in the US require a negative COVID-19 test before traveling to the US, starting Jan. 26.',
     //'Covid-19 is a severe respiratory disease entailing that a pathogen enters the body, and multiplies a lot.',
+    'Apelin or its receptor agonists are of great potential treatment for COVID-19 through suppressing angiotensin-converting enzyme (ACE) and angiotensin II (Ang-II) production, as well as, down-regulating angiotensin receptor 1 (AT1R) and ACE2 up-regulation.',
+    'Apelin or its receptor agonists are a potential treatment for COVID-19 through suppressing the production of ACE and Ang-II, down-regulating AT1R, and up-regulating ACE2.',
   ]
   addExampleButtons(examples);
   elText.focus();
