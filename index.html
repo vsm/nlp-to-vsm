@@ -37,9 +37,9 @@ TODO:
 
 -->
 
+  <script src="https://unpkg.com/vsm-dictionary-uniprot@^1.0.5/dist/vsm-dictionary-uniprot.min.js"></script>
   <!--
   <script src="https://unpkg.com/vsm-pubdictionaries@^1.0.0/dist/vsm-pubdictionaries.min.js"></script>
-  <script src="https://unpkg.com/vsm-dictionary-uniprot@^1.0.5/dist/vsm-dictionary-uniprot.min.js"></script>
   Etc.
   <script src="vsm-box.standalone.min.js"></script>
   -->
@@ -103,6 +103,8 @@ TODO:
   var vsmBox  = document.getElementById('vsmBox');
   var elLog   = document.getElementById('log');
 
+  vsmBox.vsmDictionary = new VsmDictionaryUniProt();
+
   /*
   // Initialize the vsm-dictionaries,
   // bundle them into a dictionary-combiner wrapped in a cacher,
@@ -110,8 +112,8 @@ TODO:
   var CachedDictCombiner = VsmDictionaryCacher(VsmDictionaryCombiner, { predictEmpties: false });
   vsmBox.vsmDictionary = new CachedDictCombiner({
     dictionaries: [
-      new VsmPubDictionaries({ suggest: 'substring' }),
-      new VsmDictionaryUniProt(),
+      ///new VsmPubDictionaries({ suggest: 'substring' }),
+      ///new VsmDictionaryUniProt(),
     ],
   }); /**/
 
@@ -187,7 +189,7 @@ TODO:
 
 
 
-  function getEnjuParse(text, cb) {
+  function getParse(text, cb) {
     // See: http://pubannotation.org/annotators/EnjuParser?utf8=✓&text=Covid-19+is+a+respiratory+disease.
     // and: http://enju.dbcls.jp/?mode=PAS&model=GENIA&parser=Enju&text=Covid-19+is+a+respiratory+disease.
     // Note: 'enju.dbcls.jp' causes a CORS error:
@@ -199,19 +201,72 @@ TODO:
     var baseURL = 'http://enju.dbcls.jp/?mode=PAS&model=GENIA&parser=Enju';
     fetch(proxyURL + baseURL, { method: 'POST', body: text })
       .then(response => response.json())
-      .then(enjuData => {
-        logLists('Enju',  enjuData.denotations, 'd',  enjuData.relations, 'r');
-        cb(null, enjuData);
+      .then(data => done('enju', null, data))
+      .catch(err => done('enju', err));
+
+
+    proxyURL = 1 ? 'https://cors-anywhere.herokuapp.com/' : '';
+    baseURL = 'http://stanza.run/bio/?properties={"annotators":"ner"}&nerDataset=bio:jnlpba';
+    fetch(proxyURL + baseURL,
+      { method: 'POST',
+        headers: {
+          Accept:         'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        },
+        body: text
       })
-      .catch(err => cb(err));
+      .then(response => response.json())
+      .then(data =>  !data || !data.sentences || !data.sentences.length ?
+        done('stanza', 'no data') :
+        done('stanza', null, data.sentences[0])
+      )
+      .catch(err => done('stanza', err));
+
+
+    var count = 0;
+    var data = {
+      enju:   { text: '', denotations: [], relations: [] },
+      stanza: { tokens: [], basicDependencies: [] }
+    };
+
+
+    function done(what, err, oneData) {
+      if (++count == Infinity)  return;
+      log(`- Received response: ${ what[0].toUpperCase() + what.substr(1) }.`);
+      if (!err)  data[what] = oneData;
+      if (what == 'stanza')  err = null;  // Ignore Stanza errors. For now, ..
+                               // ..getting NER is less vital than dep.-trees.
+      if (err || count >= 2) {
+        count = Infinity;
+        cb(err, data);
+      }
+    }
+  }
+
+
+
+
+  function getHumanProtInfo(str, index, cb) {
+    var proxyURL = 0 ? 'https://cors-anywhere.herokuapp.com/' : '';
+    var url = `https://www.uniprot.org/uniprot/?query=${ str }` +
+      `+AND+organism:9606+AND+reviewed:yes&columns=id,entry name` + ///,genes
+      `&sort=score&limit=10&offset=0&format=tab`;
+    fetch(proxyURL + url, { method: 'GET' })
+      .then(response => response.text())
+      .then(data => cb(null, index, data))
+      .catch(err => cb(err,  index));
   }
 
 
 
 
 
-  function vsmify(enju) {
+  function vsmify(data, cb) {
+    var enju = data.enju;
     var text = enju.text;
+
+    logLists('Enju (Syntax)',  enju.denotations, 'd',  enju.relations, 'r');
+
 
     // Map `terms` to an easier-to-use form.
     var terms = enju.denotations.map(o => ({
@@ -222,6 +277,111 @@ TODO:
       tag: o.obj
     }));
 
+
+
+    /*
+      Try to link protein terms to UniProt-Human IDs:
+      - (PubTator's REST API for free text is too slow (>1 min response time)).
+      - So, we first use Stanza NER to tell which terms are proteins.
+      - And then we ask UniProt what the IDs for these terms can be;
+        //and a list of alternate candidate IDs (for easy access in autocomplete).
+    */
+
+    var stanza = data.stanza;
+
+    var tokens = stanza.tokens || [];
+    if (tokens.length) {
+      logLists('Stanza (NER)',  stanza.tokens, 'tk',  stanza.basicDependencies, 'dp');
+    }
+
+
+    // Add a `prot:true` property to Enju-derived `terms` that correspond
+    // to Stanza `tokens` tagged as proteins.
+    // - First merge hyphenated terms from Stanza, to match enju's tokenization.
+    // - Then just do a simple one-to-one word match.
+    if (tokens.length) {
+      for (var i = 0;  i < tokens.length;  i++) {
+        tokens[i].i = i;  // Zero-starting, merge-aware index (unlike `token.index`).
+        if (i < tokens.length - 2   &&  tokens[i+1].word == '-') {
+          var x = tokens[i],  y = tokens[i+1],  z = tokens[i+2];
+          x.word += y.word + z.word;
+          x.ner = [x.ner, y.ner, z.ner].includes('PROTEIN') ?  'PROTEIN' :  'O';
+          tokens.splice(i, 2);
+          i--;
+        }
+      }
+
+      tokens.forEach(tk => {
+        if (tk  &&  tk.ner == 'PROTEIN') {
+          var term = terms[tk.i];
+          if (term  &&  tk.word == term.str)  term.prot = true;
+        }
+      });
+    }
+
+
+    // If there are protein terms, then launch parallel queries for their IDs.
+    var protTerms = terms.filter(t => t.prot);
+    var countLeft = protTerms.length;
+
+    if (!countLeft) {
+      donePart1();
+    }
+    else {
+      // For each protTerm: get a list of best-matching proteins (str+classID).
+      protTerms.forEach((term, i) => getHumanProtInfo(term.str, i, gotAProt));
+      function gotAProt(err, i, data) {
+        if (!err) {
+          try {
+            term = protTerms[i];
+            log(`- Received response: UniProt, '${ term.str }'`);
+            delete term.prot;
+            data = data.trim().split(/\r?\n/g).slice(1).map(row => {
+              row = row.split('\t');
+              return {
+                id: 'https://www.uniprot.org/uniprot/' + row[0],
+                str: row[1],
+              };
+            });
+            console.log(err, i, protTerms[i].str); console.dir(data);
+
+            // If an exact match is found, then use that one,
+            // else use the first one in the `data` list.
+            for (var i = 0;  i < data.length;  i++) {
+              if (data[i].str.split('_')[0] == term.str)  break;  // E.g. 'AKT1_HUMAN' ~ 'AKT1'.
+            }
+            term.classID = data[ i < data.length ? i : 0 ] .id;
+
+            // Make autocomplete-lookup put UniProt terms on top.
+            // Also pin top matches from `data on top, so users can easily
+            // correct things by immediately seeing highly-likely alternate IDs.
+            ///term.queryOptions = {
+            ///  sort: { dictID: [ 'https://www.uniprot.org' ] },
+            ///  ...data.length && { fixedTerms: data }
+            ///};
+            console.log('--->', term);
+          }
+          catch(err) {}
+        }
+        if (--countLeft <= 0) {
+          logLists('Enju terms + Stanza NER',  terms, 'term');
+          donePart1();
+        }
+      }
+    }
+
+
+    // Once any/all getGeneInfo() callbacks arrived: continue processing, part 2.
+    function donePart1() {
+      vsmifyPart2(text, data, enju, terms, cb);
+    }
+  }
+
+
+
+
+
+  function vsmifyPart2(text, data, enju, terms, cb) {
 
     // Some shorthand functions.
     const str = i => terms[i].str;
@@ -331,8 +491,12 @@ TODO:
 
     // Create valid VSM-terms.
     var terms = terms.map(t => {
-      var classID = null;  // Ideally, an ontology ID would be filled in here.
-      return { str: t.str, classID, instID: null };
+      return {
+        str: t.str,
+        classID: t.classID || null,
+        instID: null,
+        ...t.queryOptions && { queryOptions: t.queryOptions }
+      };
     });
 
 
@@ -373,7 +537,7 @@ TODO:
         var matchingConns = conns.filter((d, j) =>  i != j  &&
           d.type == 'T'  &&  c.pos[0] == d.pos[0]  &&  c.pos[2] == d.pos[2]
         );
-        if (matchingConns.length)  return false
+        if (matchingConns.length)  return false;
       }
       return true;
     });
@@ -381,7 +545,7 @@ TODO:
     logLists('VSMified',  terms, 'term',  conns, 'conn');
 
 
-    return { terms, conns };
+    cb({ terms, conns });
   }
 
 
@@ -391,31 +555,36 @@ TODO:
   function nlpToVSM(text, cb) {
     if (text == 'demo') {  // For dev: return a demo-object for text 'demo'.
       var demoData = {
-        text: 'Covid-19 is a severe respiratory disease.',
-        denotations: [
-          { id: 'T0',  span: { begin:  0, end:  8 },  obj: 'NN' },
-          { id: 'T1',  span: { begin:  9, end: 11 },  obj: 'VBZ' },
-          { id: 'T2',  span: { begin: 12, end: 13 },  obj: 'DT' },
-          { id: 'T3',  span: { begin: 14, end: 20 },  obj: 'JJ' },
-          { id: 'T4',  span: { begin: 21, end: 32 },  obj: 'JJ' },
-          { id: 'T5',  span: { begin: 33, end: 40 },  obj: 'NN' }
-        ],
-        relations: [
-          { id: 'R0',  subj: 'T0',  obj: 'T1',  pred: 'arg1Of' },
-          { id: 'R1',  subj: 'T5',  obj: 'T1',  pred: 'arg2Of' },
-          { id: 'R2',  subj: 'T5',  obj: 'T2',  pred: 'arg1Of' },
-          { id: 'R3',  subj: 'T5',  obj: 'T3',  pred: 'arg1Of' },
-          { id: 'R4',  subj: 'T5',  obj: 'T4',  pred: 'arg1Of' }
-        ]
+        enju: {
+          text: 'Covid-19 is a severe respiratory disease.',
+          denotations: [
+            { id: 'T0',  span: { begin:  0, end:  8 },  obj: 'NN' },
+            { id: 'T1',  span: { begin:  9, end: 11 },  obj: 'VBZ' },
+            { id: 'T2',  span: { begin: 12, end: 13 },  obj: 'DT' },
+            { id: 'T3',  span: { begin: 14, end: 20 },  obj: 'JJ' },
+            { id: 'T4',  span: { begin: 21, end: 32 },  obj: 'JJ' },
+            { id: 'T5',  span: { begin: 33, end: 40 },  obj: 'NN' }
+          ],
+          relations: [
+            { id: 'R0',  subj: 'T0',  obj: 'T1',  pred: 'arg1Of' },
+            { id: 'R1',  subj: 'T5',  obj: 'T1',  pred: 'arg2Of' },
+            { id: 'R2',  subj: 'T5',  obj: 'T2',  pred: 'arg1Of' },
+            { id: 'R3',  subj: 'T5',  obj: 'T3',  pred: 'arg1Of' },
+            { id: 'R4',  subj: 'T5',  obj: 'T4',  pred: 'arg1Of' }
+          ]
+        },
+        stanza: {
+          tokens: [],
+          basicDependencies: []
+        }
       };
-      return gotEnjuData(null, demoData);
+      return gotData(null, demoData);
     }
 
-    getEnjuParse(text, gotEnjuData);
+    getParse(text, gotData);
 
-    function gotEnjuData(err, enjuData) {
-      var vsm = vsmify(enjuData);
-      cb(vsm);
+    function gotData(err, data) {
+      vsmify(data, vsm => cb(vsm));
     };
   }
 
@@ -451,7 +620,7 @@ TODO:
 
 
   function onElTextInput(ev) {  // Called when users edit the textfield.
-    var text = elText.value.replace(/[\r\n]+/g, ' ');
+    var text = elText.value.replace(/[\r\n]+/g, ' ').trim();
     if (text != prevText) {
       prevText = text;
       processNewText(text);
@@ -461,7 +630,7 @@ TODO:
 
   function setText(text, delay = 0) {  // Called by our code to put new text in textfield.
     if (typeof text == 'number')  text = examples[text];  // text is number? => use that example nr.
-    elText.value = prevText = text;
+    elText.value = prevText = text.trim();
     setTimeout(() => processNewText(text), delay);
   }
 
