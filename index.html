@@ -209,8 +209,11 @@ TODO:
       .catch(err => done('enju', err));
 
 
-    baseURL = 'https://stanza.run/bio/?properties={"annotators":"ner"}&nerDataset=bio:jnlpba';
-    fetch(proxyURL + baseURL,
+    // Note: 'http://stanza.run/bio/'  errors, because when loading anything
+    // from *https*:/vsm.github..., one must not use http but only https.
+    // But also 'https://stan...' errors, because that server doesn't support it.
+    baseURL = 'http://stanza.run/bio/?properties={"annotators":"ner"}&nerDataset=bio:jnlpba';
+    fetch(proxyURL_0 + baseURL,
       { method: 'POST',
         credentials: 'omit',
         mode: 'cors',
