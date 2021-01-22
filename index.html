@@ -190,8 +190,8 @@ TODO:
 
 
   const useProxies = window.location.protocol == 'file:';
-  const proxyURL0  = 'https://cors-anywhere.herokuapp.com/';
-  const proxyURL   = useProxies ?  proxyURL0 :  '';
+  const proxyURL_0 = 'https://cors-anywhere.herokuapp.com/';
+  const proxyURL   = useProxies ?  proxyURL_0 :  '';
 
 
   function getParse(text, cb) {
@@ -203,7 +203,7 @@ TODO:
     //   (Reason: CORS header ‘Access-Control-Allow-Origin’ missing).
     // Temporary workaround: use a proxy server.
     var baseURL = 'https://enju.dbcls.jp/?mode=PAS&model=GENIA&parser=Enju';
-    fetch(proxyURL + baseURL, { method: 'POST', body: text })
+    fetch(proxyURL_0 + baseURL, { method: 'POST', body: text })
       .then(response => response.json())
       .then(data => done('enju', null, data))
       .catch(err => done('enju', err));
@@ -212,6 +212,8 @@ TODO:
     baseURL = 'https://stanza.run/bio/?properties={"annotators":"ner"}&nerDataset=bio:jnlpba';
     fetch(proxyURL + baseURL,
       { method: 'POST',
+        credentials: 'omit',
+        mode: 'cors',
         headers: {
           Accept:         'application/json',
           'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
