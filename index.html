@@ -52,7 +52,9 @@ TODO:
     #exButtons  { margin: 0 0 0 0; min-height: 20px; }
     #exButtons button  { margin: 0 6px 0 0; padding: 0 9px; }
     .title      { margin: 30px 0 5px 0; color: #555; font-weight: bold; }
-    .title.exbt { margin-top: 12px; }
+    .title.git  { margin-top:  4px; font-size: 10px; }
+    .title.git .repo { font-weight: normal; }
+    .title.exbt { margin-top: 22px; }
     .title.nat  { margin-top: 30px; }
     .title.json { margin-top: 60px; }
     .title.log  { margin-top: 70px; }
@@ -78,13 +80,19 @@ TODO:
 
 
 <body>
+  <div      class="title git">GitHub:
+    <span class="repo">
+      <a href="https://vsm.github.io">VSM</a> /
+      <a href="https://github.com/vsm/nlp-to-vsm#readme">nlp-to-vsm</a>
+    <span>
+  </div>
   <div      class="title exbt">Examples:</div>
   <div      id="exButtons"></div>
   <div      class="title nat">Natural language sentence:
     <span class="note">(live-editable):</span>
   </div>
   <textarea id="text" placeholder="Type some text, or click an example button..."></textarea>
-  <div      class="title vsm">Via NLP to <a href="https://vsm.github.io">VSM</a>:
+  <div      class="title vsm">Via NLP to VSM:
     <span   id="msg"></span>
   </div>
   <vsm-box  id="vsmBox"></vsm-box>
