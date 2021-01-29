@@ -186,7 +186,7 @@ TODO:
   function prettyJSON(o) {
     return JSON.stringify(o) .replace(/"([a-z0-9_]+?)":/gi, '$1: ')
       .replace(/([[{,])/g, '$1 ') .replace(/([\]}])/g, ' $1')
-      .replace(/"(.*?)"/g, (m, $1) => `'${ $1.toString() }'`);
+      .replace(/"(.*?)"/g, (m, $1) => `'${ $1.toString().replace(/'/g, '\\\'') }'`);
   }
 
 
@@ -402,6 +402,7 @@ TODO:
 
     // Some shorthand functions.
     const str = i => terms[i].str;
+    const stL = i => str(i).toLowerCase();
     const tag = i => terms[i].tag;
     const rel = p => ({ s: 'subj', o: 'obj', a: 'attr' }[p] || '?');
     const reverse = c => { var tmp = c.s;  c.s = c.o;  c.o = tmp; }
@@ -451,7 +452,7 @@ TODO:
       // Delete: any '-a->' rela from:
       // - to determiner term like a/the/... (but not some/all).
       if (  c.p == 'a' &&
-            (tag(c.o) == 'DT'  &&  [ 'the', 'a', 'an' ].includes(str(c.o)))  ) {
+            (tag(c.o) == 'DT'  &&  [ 'the', 'a', 'an' ].includes(stL(c.o)))  ) {
         c.del = true;
       }
 
@@ -460,8 +461,8 @@ TODO:
       // - a 'which' determiner,
       // - a comma or semicolon.
       if (  c.p == 's' &&
-            ( (tag(c.s) == 'DT'  &&  [ 'the', 'a', 'an' ].includes(str(c.s)))  ||
-              (tag(c.s) == 'IN'  &&  str(c.s) == 'that')  ||
+            ( (tag(c.s) == 'DT'  &&  [ 'the', 'a', 'an' ].includes(stL(c.s)))  ||
+              (tag(c.s) == 'IN'  &&  stL(c.s) == 'that')  ||
               (tag(c.s) == 'WDT')  ||
               (tag(c.s) == '-COMMA-') ||   /// ',' == str(c.s)
               (tag(c.s) == '-SEMICOLON-')  /// ';' == str(c.s)
