@@ -122,4 +122,4 @@ This project is quite ambitious and may eventually become the topic of an X-peop
 
 ### Q&amp;A
 
-Questions &amp; answers and **further thoughts** are collected in GitHub [**Issues**](https://github.com/vsm/nlp-to-vsm/issues).
+Questions &amp; answers and **further thoughts** are collected in GitHub [**Discussions**](https://github.com/vsm/nlp-to-vsm/discussions).
