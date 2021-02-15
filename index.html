@@ -202,7 +202,7 @@ TODO:
 
 
   const useProxies = window.location.protocol == 'file:';
-  const proxyURL_0 = 'https://cors-anywhere.herokuapp.com/';
+  const proxyURL_0 = 'https://scicura.org/cors/';
   const proxyURL   = useProxies ?  proxyURL_0 :  '';
 
 
@@ -221,9 +221,9 @@ TODO:
       .catch(err => done('enju', err));
 
 
-    // Note: 'http://stanza.run/bio/'  errors, because when loading anything
+    // Note: 'http://stanza.run/bio/' errors, because when loading anything
     // from *https*:/vsm.github..., one must not use http but only https.
-    // But also 'https://stan...' errors, because that server doesn't support it.
+    // But also 'http*s*://stan...' errors, because it doesn't support requests.
     baseURL = 'http://stanza.run/bio/?properties={"annotators":"ner"}&nerDataset=bio:jnlpba';
     fetch(proxyURL_0 + baseURL,
       { method: 'POST',
