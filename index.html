@@ -7,15 +7,9 @@ By:
 - Steven Vercruysse (https://orcid.org/0000-0002-3136-7353)
 
 
-TODO:
+TODO (by whoever can contribute):
 
-- Combine with other parser-outputs,
-  to generate proper ontology/CV IDs for some terms.
-
-- Where possible: make an additional mapping to a VSM-sentence that expresses
-  'higher level' information, like: "protein X upregulates protein Y".
-  This is probably easiest by starting from the first VSM-sentence
-  (which is an already semantified basis), and inferring the additional fact.
+A) Syntactical:
 
 - Generate list-connectors where needed.
   - Note: check if commas (which get deleted) give any helpful info for deciding
@@ -33,7 +27,19 @@ TODO:
   to proper sobi-bidents without the 'of', like "(-, nounified-verb, smth)".
   For example: 'adhesion -> of -> cells' ==> '- -> adhesion -> cells'.
 
-- Handle distributive structures:
+- Normalize distributive structures;
+  e.g.  'A activates B and C'  ==>  'A activates B  and  A activates C'.
+
+
+b) Semantical:
+
+- Combine with other parse-outputs,
+  to generate proper ontology/CV IDs for some terms.
+
+- Where possible: make an additional mapping to a VSM-sentence that expresses
+  'higher level' information, like: "protein X upregulates protein Y".
+  This is probably easiest by starting from the first VSM-sentence
+  (which is an already semantified basis), and inferring the additional fact.
 
 -->
 
@@ -67,6 +73,9 @@ TODO:
                /*font-weight: normal;*/ font-style: italic; }
     .preText { margin: 0 0 0 0; white-space: pre; color: #555;
       font-size: 11px;  font-family: consolas, courier, monospace; }
+    .errorMsg    { font-weight: bold; color: #a00; }
+    #vsmJSONWrap { height: 0; overflow: hidden; transition: height .3s ease;
+      min-height: 64px; }
 
     /* Neutralize button appearance. */
     button { appearance: none;  outline: none;  box-sizing: border-box;
@@ -100,20 +109,25 @@ TODO:
   <div      class="title json">VSM-JSON5:
     <a id="editJSON" class="note" target="_blank"></a>
   </div>
-  <div      id="vsmJSON" class="preText"></div>
+  <div      id="vsmJSONWrap">
+    <div    id="vsmJSON" class="preText"></div>
+  </div>
   <div      class="title log">Conversion log:</div>
   <div      id="log" class="preText"></div>
 </body>
 
 
 <script>
+  const debounceDelay = 800;  // Delay after user-input, before sending requests.
+
   var elExButtons = document.getElementById('exButtons');
-  var elMsg   = document.getElementById('msg');
-  var elText  = document.getElementById('text');
-  var elVSMJS = document.getElementById('vsmJSON');
-  var elEdJS  = document.getElementById('editJSON');
-  var vsmBox  = document.getElementById('vsmBox');
-  var elLog   = document.getElementById('log');
+  var elMsg    = document.getElementById('msg');
+  var elText   = document.getElementById('text');
+  var elVSMJSW = document.getElementById('vsmJSONWrap');
+  var elVSMJS  = document.getElementById('vsmJSON');
+  var elEdJS   = document.getElementById('editJSON');
+  var vsmBox   = document.getElementById('vsmBox');
+  var elLog    = document.getElementById('log');
 
   vsmBox.vsmDictionary = new VsmDictionaryUniProt();
 
@@ -200,12 +214,35 @@ TODO:
   }
 
 
+  function logRequest(service) {
+    log(`- Awaiting response: ${ capitalChar0(service) }...`);
+  }
+
+
+  function logResponse(service, err) {
+    var msg  = capitalChar0(service) + (!err ? '' : ` Error: ${ err.message }`);
+    var html = !err ?  msg :  `<span class="errorMsg">${ msg }</span>`;
+    log(`- Received response: ${ html }.`);
+    return err && msg;
+  }
+
+
+  function capitalChar0(str) {
+    str = str || '';
+    return str[0].toUpperCase() + str.substr(1);
+  }
+
+
 
   const useProxies = window.location.protocol == 'file:';
   const proxyURL_0 = 'https://scicura.org/cors/';
   const proxyURL   = useProxies ?  proxyURL_0 :  '';
 
 
+  /**
+   * Sends a request to Enju to parse the text, to get dependency trees; and
+   * sends a parallel request to Stanza to parse it too, to get NER annotations.
+   */
   function getParse(text, cb) {
     // See: http://pubannotation.org/annotators/EnjuParser?utf8=✓&text=Covid-19+is+a+respiratory+disease.
     // and: http://enju.dbcls.jp/?mode=PAS&model=GENIA&parser=Enju&text=Covid-19+is+a+respiratory+disease.
@@ -214,16 +251,20 @@ TODO:
     //   The Same Origin Policy disallows reading the remote resource at ...
     //   (Reason: CORS header ‘Access-Control-Allow-Origin’ missing).
     // Temporary workaround: use a proxy server.
+    var svcEnju = 'enju';
     var baseURL = 'https://enju.dbcls.jp/?mode=PAS&model=GENIA&parser=Enju';
     fetch(proxyURL_0 + baseURL, { method: 'POST', body: text })
+      .then(checkFetchStatus)
       .then(response => response.json())
-      .then(data => done('enju', null, data))
-      .catch(err => done('enju', err));
+      .then(data => done(svcEnju, null, data))
+      .catch(err => done(svcEnju, err));
+    logRequest(svcEnju);
 
 
     // Note: 'http://stanza.run/bio/' errors, because when loading anything
     // from *https*:/vsm.github..., one must not use http but only https.
     // But also 'http*s*://stan...' errors, because it doesn't support requests.
+    var svcStanza = 'stanza';
     baseURL = 'http://stanza.run/bio/?properties={"annotators":"ner"}&nerDataset=bio:jnlpba';
     fetch(proxyURL_0 + baseURL,
       { method: 'POST',
@@ -235,12 +276,14 @@ TODO:
         },
         body: text
       })
+      .then(checkFetchStatus)
       .then(response => response.json())
       .then(data =>  !data || !data.sentences || !data.sentences.length ?
-        done('stanza', 'no data') :
-        done('stanza', null, data.sentences[0])
+        done(svcStanza, 'no data') :
+        done(svcStanza, null, data.sentences[0])
       )
-      .catch(err => done('stanza', err));
+      .catch(err => done(svcStanza, err));
+    logRequest(svcStanza);
 
 
     var count = 0;
@@ -250,12 +293,16 @@ TODO:
     };
 
 
-    function done(what, err, oneData) {
+    function done(svc, err, oneData) {
       if (++count == Infinity)  return;
-      log(`- Received response: ${ what[0].toUpperCase() + what.substr(1) }.`);
-      if (!err)  data[what] = oneData;
-      if (what == 'stanza')  err = null;  // Ignore Stanza errors. For now, ..
-                               // ..getting NER is less vital than dep.-trees.
+      err = logResponse(svc, err);
+      if (!err)  data[svc] = oneData;
+      if (svc == 'stanza')  err = null;  // Ignore Stanza errors. For now, NER..
+                               // ..is less vital than getting dependency-trees.
+      if (err && svc == 'enju') {  // On Enju error, make the error text appear..
+        data[svc].text = err;      // ..in the vsm-box.
+        data[svc].denotations.push({ span: { begin: 0, end: err.length } });
+      }
       if (err || count >= 2) {
         count = Infinity;
         cb(err, data);
@@ -267,13 +314,28 @@ TODO:
 
 
   function getHumanProtInfo(str, index, cb) {
+    var svc = `UniProt, '${ str }'`;
     var url = `https://www.uniprot.org/uniprot/?query=${ str }` +
       `+AND+organism:9606+AND+reviewed:yes&columns=id,entry name` + ///,genes
       `&sort=score&limit=10&offset=0&format=tab`;
     fetch(proxyURL + url, { method: 'GET' })
+      .then(checkFetchStatus)
       .then(response => response.text())
-      .then(data => cb(null, index, data))
-      .catch(err => cb(err,  index));
+      .then(data => done(null, data))
+      .catch(err => done(err));
+    logRequest(svc);
+
+    function done(err, data) {
+      logResponse(svc, err);
+      cb(err, index, data);
+    }
+  }
+
+
+
+  function checkFetchStatus(response) {
+    if (response.status == 200)  return response;
+    throw new Error(`${response.status}: ${response.statusText}`);
   }
 
 
@@ -353,7 +415,6 @@ TODO:
         if (!err) {
           try {
             term = protTerms[i];
-            log(`- Received response: UniProt, '${ term.str }'`);
             delete term.prot;
             data = data.trim().split(/\r?\n/g).slice(1).map(row => {
               row = row.split('\t');
@@ -561,6 +622,7 @@ TODO:
     });
 
     logLists('VSMified',  terms, 'term',  conns, 'conn');
+    log('- Done.');
 
 
     cb({ terms, conns });
@@ -615,7 +677,7 @@ TODO:
     nlpToVSM(text, vsm => {
       if (prevText == text) {  // Make sure not to show stale (late) results.
         elMsg.innerHTML = '';
-        var vsmText = elVSMJS.innerHTML = prettyVSMJSON(vsm);
+        var vsmText = fillElVSMJS(vsm);
         vsmBox.initialValue = vsm;
 
         var usp = new URLSearchParams();
@@ -624,6 +686,14 @@ TODO:
         elEdJS.innerHTML = '(&rarr; live-edit)';
       }
     });
+  }
+
+
+
+  function fillElVSMJS(vsm) {
+    var str = elVSMJS.innerHTML = prettyVSMJSON(vsm);
+    setTimeout(() => elVSMJSW.style.height = elVSMJS.scrollHeight + 'px', 0);
+    return str;
   }
 
 
@@ -668,10 +738,10 @@ TODO:
 
   var prevText = '';
   elText.value = prevText;  // Reset the textfield on page-reload.
-  elText.addEventListener('input', debounce(onElTextInput, 500));
+  elText.addEventListener('input', debounce(onElTextInput, debounceDelay));
 
   const vsmEmpty = { terms: [], conns: [] };
-  elVSMJS.innerHTML = prettyVSMJSON(vsmEmpty);
+  fillElVSMJS(vsmEmpty);
 
 
   const examples = [
