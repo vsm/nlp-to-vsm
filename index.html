@@ -31,7 +31,7 @@ A) Syntactical:
   e.g.  'A activates B and C'  ==>  'A activates B  and  A activates C'.
 
 
-b) Semantical:
+B) Semantical:
 
 - Combine with other parse-outputs,
   to generate proper ontology/CV IDs for some terms.
@@ -57,6 +57,7 @@ b) Semantical:
     body        { margin: 0 0 60px 20px; }
     #exButtons  { margin: 0 0 0 0; min-height: 20px; }
     #exButtons button  { margin: 0 6px 0 0; padding: 0 9px; }
+    .hide       { display: none; }
     .title      { margin: 30px 0 5px 0; color: #555; font-weight: bold; }
     .title.git  { margin-top:  4px; font-size: 10px; }
     .title.git .repo { font-weight: normal; }
@@ -96,7 +97,10 @@ b) Semantical:
     <span>
   </div>
   <div      class="title exbt">Examples:</div>
-  <div      id="exButtons"></div>
+  <div>
+    <span    id="exButtons"></span>
+    <button id="button-backup-demo" class="hide">backup demo</button>
+  </div>
   <div      class="title nat">Natural language sentence:
     <span class="note">(live-editable):</span>
   </div>
@@ -120,7 +124,11 @@ b) Semantical:
 <script>
   const debounceDelay = 800;  // Delay after user-input, before sending requests.
 
+  const demoText  = 'Covid-19 is a severe respiratory disease.';  // Backup demo for if Enju webservice is down.
+  const demoDelay = 500;  // Artificial delay for the backup-demo.
+
   var elExButtons = document.getElementById('exButtons');
+  var elBtnBkDemo = document.getElementById('button-backup-demo');
   var elMsg    = document.getElementById('msg');
   var elText   = document.getElementById('text');
   var elVSMJSW = document.getElementById('vsmJSONWrap');
@@ -302,6 +310,7 @@ b) Semantical:
       if (err && svc == 'enju') {  // On Enju error, make the error text appear..
         data[svc].text = err;      // ..in the vsm-box.
         data[svc].denotations.push({ span: { begin: 0, end: err.length } });
+        elBtnBkDemo.classList.remove('hide');
       }
       if (err || count >= 2) {
         count = Infinity;
@@ -633,10 +642,12 @@ b) Semantical:
 
 
   function nlpToVSM(text, cb) {
-    if (text == 'demo') {  // For dev: return a demo-object for text 'demo'.
+    // For dev: return a demo-object for text 'demo'.
+    // Or if the Enju webservice is down: also use this mechanism as a backup.
+    if (text == 'demo' || text == demoText) {
       var demoData = {
         enju: {
-          text: 'Covid-19 is a severe respiratory disease.',
+          text: demoText,
           denotations: [
             { id: 'T0',  span: { begin:  0, end:  8 },  obj: 'NN' },
             { id: 'T1',  span: { begin:  9, end: 11 },  obj: 'VBZ' },
@@ -722,7 +733,11 @@ b) Semantical:
 
 
   function setText(text, delay = 0) {  // Called by our code to put new text in textfield.
-    if (typeof text == 'number')  text = examples[text];  // text is number? => use that example nr.
+    if (text == -1) {
+      text  = demoText;
+      delay = demoDelay;
+    }
+    else if (typeof text == 'number')  text = examples[text];  // text is number? => use that example nr.
     elText.value = prevText = text.trim();
     setTimeout(() => processNewText(text), delay);
   }
@@ -732,6 +747,7 @@ b) Semantical:
     elExButtons.innerHTML = examples
       .map((text, i) => `<button onclick="setText(${ i })">${ i + 1 }</button>`)
       .join('');
+    elBtnBkDemo.setAttribute('onclick', `setText(-1)`);
   }
 
 
