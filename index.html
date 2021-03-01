@@ -43,13 +43,13 @@ B) Semantical:
 
 -->
 
-  <script src="https://unpkg.com/vsm-dictionary-uniprot@^1.0.5/dist/vsm-dictionary-uniprot.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vsm-dictionary-uniprot@^1.0.5/dist/vsm-dictionary-uniprot.min.js"></script>
   <!--
-  <script src="https://unpkg.com/vsm-pubdictionaries@^1.0.0/dist/vsm-pubdictionaries.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vsm-pubdictionaries@^1.0.0/dist/vsm-pubdictionaries.min.js"></script>
   Etc.
   <script src="vsm-box.standalone.min.js"></script>
   -->
-  <script src="https://unpkg.com/vsm-box@^1.0.0/dist/vsm-box.standalone.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vsm-box@^1.0.0/dist/vsm-box.standalone.min.js"></script>
 
   <style>
     body, textarea, input { font-size: 11px; font-family: Verdana, Arial, sans-serif; }
@@ -470,6 +470,43 @@ B) Semantical:
 
   function vsmifyPart2(text, data, enju, terms, cb) {
 
+
+    // Enjus's arg3Of, arg4Of, arg5Of occur when there are indirect objects.
+    // For example, 'you' is an indirect object in 'I show you this'.
+    // 1) Ideally we would insert an extra relation here: 'I show [to] you this'.
+    // 2) Or we could also see this as an implicit relation from 'show' to 'you',
+    //    which would correspond onto VSM's has_attribute.
+    // + Here we choose 2), for simplicity.
+    // + However, for ditransitive verbs, Enju reports arg3Of as direct object,
+    //   and arg2Of as indirect object. This differs from the normal case,
+    //   where arg2Of is the direct object (see
+    //     https://mynlp.is.s.u-tokyo.ac.jp/enju/enju-manual/pas.html).
+    // + Therefore here, we first switch any arg3Of and arg2Of with same `obj`.
+
+    if (
+      false &&  // <-- Deactivated, until relation duplication is solved first.
+      enju.relations.filter(r => r.pred == 'arg3Of').length
+    ) {
+      for (var i = 0, n = enju.relations.length, j, r1, r2;  i < n;  i++) {
+        r1 = enju.relations[i];
+        if (r1.pred == 'arg3Of') {
+          for (j = 0;  j < n;  j++) {
+            r2 = enju.relations[j];
+            if (r1.obj == r2.obj &&  r2.pred == 'arg2Of') {
+              r1.pred = 'arg2Of_sw';
+              r2.pred = 'arg3Of_sw';
+              break;
+            }
+          }
+        }
+      }
+      enju.relations.forEach(r => r.pred = r.pred.replace(/_sw$/, ''));
+      logLists('Preprocessed 0, arg2<->arg3',
+        enju.denotations, 'd',  enju.relations, 'r');
+    }
+
+
+
     // Some shorthand functions.
     const str = i => terms[i].str;
     const stL = i => str(i).toLowerCase();
@@ -480,10 +517,18 @@ B) Semantical:
 
     // Map `relations` to `relas`: intermediary objects before making VSM-conns.
     // `relas[*].p`: preliminary mapping on a subject|object primitive-relation.
+    const relMap = {
+      arg1Of: 's',
+      arg2Of: 'o',
+      arg3Of: '?', /// 'a'
+      arg4Of: '?', /// 'a'
+      arg5Of: '?', /// 'a'
+      modOf : 's'  /// '?' 'a' 's'
+    };
     var relas = enju.relations.map(o => ({
       ///i: ~~o.id.substr(1),
       s: ~~o.obj .substr(1),  // Index of this primitive-rel.'s subject-term.
-      p: [ '?', 's', 'o' ][~~o.pred.replace(/^arg(.)Of$/, '$1')],
+      p: relMap[o.pred] || '?',
       o: ~~o.subj.substr(1),
     }));
 
@@ -554,7 +599,7 @@ B) Semantical:
 
     // Mark for removal: terms not connected by a rela anymore. E.g. determiners.
     relas.forEach(c => {
-      if (c.p == '?')  return;                   // Ignore unrecognized relas.
+      ///if (c.p == '?')  return;                /// Ignore unrecognized relas.
       terms[c.s].keep = terms[c.o].keep = true;  // Flag the terms to keep.
     });
     if (relas.length == 0) {  // Don't remove terms if no relas are present, e.g.
